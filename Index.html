@@ -1,0 +1,265 @@
+  <!DOCTYPE html>
+  <html lang="zh-TW">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Amanda抽獎活動</title>
+      <style>
+          body {
+              font-family: Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+              color: #333;
+              padding: 20px;
+          }
+          h1, h2 {
+              margin-bottom: 20px;
+          }
+          input, textarea {
+              width: 300px;
+              padding: 10px;
+              margin-bottom: 10px;
+              border: 1px solid #ccc;
+              border-radius: 5px;
+          }
+          #participants-list, #winners-list {
+              width: 300px;
+              max-height: 200px;
+              overflow-y: auto;
+              border: 2px solid #333;
+              border-radius: 5px;
+              padding: 10px;
+              margin-bottom: 20px;
+              background-color: white;
+          }
+          #participants-list li, #winners-list li {
+              margin-bottom: 5px;
+          }
+          button {
+              padding: 10px 20px;
+              font-size: 16px;
+              border: none;
+              border-radius: 5px;
+              background-color: #333;
+              color: #fff;
+              cursor: pointer;
+              transition: background-color 0.3s ease;
+              margin: 10px;
+          }
+          button:hover {
+              background-color: #555;
+          }
+          #winner, #prize-name {
+              margin-top: 20px;
+              font-size: 24px;
+              font-weight: bold;
+          }
+          #slot-machine {
+              width: 300px;
+              height: 200px;
+              background-color: #333;
+              border-radius: 10px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              padding: 20px;
+              box-shadow: 0 0 20px rgba(0,0,0,0.5);
+          }
+          .slot {
+              width: 200px;
+              height: 120px;
+              background-color: #fff;
+              border-radius: 5px;
+              overflow: hidden;
+              position: relative;
+          }
+          .slot-container {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              transition: top 5s cubic-bezier(0.25, 0.1, 0.25, 1);
+          }
+          .slot-item {
+              width: 100%;
+              height: 120px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              font-size: 24px;
+              font-weight: bold;
+          }
+          #lever {
+              width: 40px;
+              height: 120px;
+              background-color: #ff4d4d;
+              border-radius: 20px;
+              margin-left: 20px;
+              cursor: pointer;
+              position: relative;
+          }
+          #lever::after {
+              content: '';
+              position: absolute;
+              width: 30px;
+              height: 30px;
+              background-color: #ffcc00;
+              border-radius: 50%;
+              top: 10px;
+              left: 5px;
+              transition: top 0.3s;
+          }
+          #lever.pulled::after {
+              top: 80px;
+          }
+          #prize-image {
+              max-width: 300px;
+              max-height: 300px;
+              margin-bottom: 20px;
+          }
+      </style>
+  </head>
+  <body>
+      <h1>Amanda 抽獎活動</h1>
+      
+      <input type="text" id="prize-name-input" placeholder="輸入獎品名稱">
+      <input type="text" id="prize-image-url" placeholder="輸入獎品圖片URL">
+      <button onclick="updatePrize()">獎品建立</button>
+      
+      <img id="prize-image" src="" alt="獎品圖片" style="display: none;">
+      <h2 id="prize-name"></h2>
+      
+      <textarea id="participants-input" rows="5" placeholder="輸入參與者名單，每行一個名字"></textarea>
+      <button onclick="updateParticipants()">匯入更新參與者名單</button>
+      
+      <div id="participants-list"></div>
+      <button onclick="setupSlotMachine()">啟動抽獎機</button>
+      <div id="slot-machine">
+          <div class="slot" id="slot1"><div class="slot-container"></div></div>
+          <div id="lever" onclick="spinSlotMachine()"></div>
+      </div>
+      <h2 id="winner"></h2>
+
+      <h2>中獎清單</h2>
+      <div id="winners-list"></div>
+
+      <script>
+          let participants = [];
+          let winners = [];
+          const ITEM_HEIGHT = 120;
+          const TOTAL_SPINS = 50;
+
+          function updatePrize() {
+              const prizeName = document.getElementById('prize-name-input').value;
+              const prizeImageUrl = document.getElementById('prize-image-url').value;
+              
+              document.getElementById('prize-name').innerText = `獎品：${prizeName}`;
+              
+              const prizeImage = document.getElementById('prize-image');
+              if (prizeImageUrl) {
+                  prizeImage.src = prizeImageUrl;
+                  prizeImage.style.display = 'block';
+              } else {
+                  prizeImage.style.display = 'none';
+              }
+          }
+
+          function updateParticipants() {
+              const input = document.getElementById('participants-input').value;
+              participants = input.split('\n').filter(name => name.trim() !== '');
+              updateParticipantsList();
+          }
+
+          function updateParticipantsList() {
+              const participantsList = document.getElementById('participants-list');
+              participantsList.innerHTML = '<h3>參與者名單：</h3><ul>' + 
+                  participants.map(name => `<li>${name}</li>`).join('') + 
+                  '</ul>';
+          }
+
+          function updateWinnersList() {
+              const winnersList = document.getElementById('winners-list');
+              winnersList.innerHTML = '<ul>' + 
+                  winners.map(winner => `<li>${winner}</li>`).join('') + 
+                  '</ul>';
+          }
+
+          function setupSlotMachine() {
+              if (participants.length === 0) {
+                  alert('請先輸入參與者名單');
+                  return;
+              }
+
+              const container = document.querySelector('#slot1 .slot-container');
+              container.innerHTML = '';
+              participants.forEach(name => {
+                  const item = document.createElement('div');
+                  item.className = 'slot-item';
+                  item.innerText = name;
+                  container.appendChild(item);
+              });
+              container.style.top = '0px';
+          }
+
+          function spinSlotMachine() {
+              if (participants.length === 0) {
+                  alert('請先啟動抽獎機');
+                  return;
+              }
+
+              const lever = document.getElementById('lever');
+              lever.classList.add('pulled');
+
+              const winnerIndex = Math.floor(Math.random() * participants.length);
+              const winner = participants[winnerIndex];
+
+              spinSlot(winnerIndex);
+
+              setTimeout(() => {
+                  document.getElementById('winner').innerText = `獲獎者：${winner}`;
+                  lever.classList.remove('pulled');
+                  
+                  // 添加獲獎者到中獎清單
+                  const prizeName = document.getElementById('prize-name').innerText.replace('獎品：', '');
+                  winners.push(`${winner} - ${prizeName}`);
+                  updateWinnersList();
+
+                  // 從參與者名單中移除獲獎者
+                  participants.splice(winnerIndex, 1);
+                  updateParticipantsList();
+                  setupSlotMachine();
+              }, 5000);
+          }
+
+          function spinSlot(winnerIndex) {
+              const container = document.querySelector('#slot1 .slot-container');
+              let currentPosition = 0;
+              let spins = 0;
+
+              function spin() {
+                  if (spins < TOTAL_SPINS) {
+                      currentPosition -= ITEM_HEIGHT;
+                      if (currentPosition <= -ITEM_HEIGHT * participants.length) {
+                          currentPosition = 0;
+                      }
+                      container.style.transition = `top 0.05s linear`;
+                      container.style.top = `${currentPosition}px`;
+                      spins++;
+                      setTimeout(spin, 50);
+                  } else {
+                      const finalPosition = -winnerIndex * ITEM_HEIGHT;
+                      container.style.transition = `top 1s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                      container.style.top = `${finalPosition}px`;
+                  }
+              }
+
+              spin();
+          }
+      </script>
+  </body>
+  </html>
